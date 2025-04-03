@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALICE AND BOB {BY HICHAM AND BLG}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .game-wrapper {
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            padding: 30px;
+            overflow: hidden;
+        }
+        .game-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .game-header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 28px;
+        }
+        .info-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+        .info-item {
+            background-color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+        .info-item p {
+            margin: 0;
+            font-weight: 600;
+            color: #495057;
+        }
+        .info-item span {
+            color: #3498db;
+            font-weight: 700;            
+        }
+        .numbers-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .number-btn {
+            width: 65px;
+            height: 65px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(145deg, #6c5ce7, #a29bfe);
+            color: white;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(108, 92, 231, 0.2);
+        }
+        .number-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 6px 12px rgba(108, 92, 231, 0.3);
+        }
+        .number-btn:disabled {
+            opacity: 0.6;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .number-btn.odd {
+            background: linear-gradient(145deg, #e17055, #fab1a0);
+            box-shadow: 0 4px 8px rgba(225, 112, 85, 0.2);
+        }
+        .number-btn.odd:hover {
+            box-shadow: 0 6px 12px rgba(225, 112, 85, 0.3);
+        }
+        .turn-indicator {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 20px 0;
+            transition: all 0.3s;
+        }
+        .player1-turn {
+            background-color: rgba(52, 152, 219, 0.1);
+            color: #2980b9;
+            border: 2px solid #3498db;
+        }
+        .player2-turn {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: #c0392b;
+            border: 2px solid #e74c3c;
+        }
+        .winner-display {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 700;
+            padding: 15px;
+            border-radius: 8px;
+            background: linear-gradient(145deg, #fdcb6e, #ffeaa7);
+            color: #2d3436;
+            margin-top: 20px;
+            opacity: 0;
+            height: 0;
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+        .winner-display.show {
+            opacity: 1;
+            height: auto;
+        }
+        .lobby-screen {
+            text-align: center;
+            padding: 20px;
+        }
+        .lobby-screen h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .lobby-screen input {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-right: 10px;
+            width: 200px;
+        }
+        .lobby-screen button {
+            padding: 10px 20px;
+            background-color: #6c5ce7;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 5px;
+        }
+        .lobby-screen button:hover {
+            background-color: #5649c0;
+        }
+        .player-info {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .waiting-message {
+            margin-top: 20px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+    </style>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+    <div class="game-wrapper" id="game-wrapper">
+        <div class="lobby-screen" id="lobby-screen">
+            <h2>Online Number Game</h2>
+            <input type="text" id="game-id-input" placeholder="Enter Game ID">
+            <button id="join-game-btn">Join Game</button>
+            <button id="create-game-btn">Create New Game</button>
+            <div class="player-info" id="player-info"></div>
+            <div class="waiting-message" id="waiting-message">Waiting for opponent...</div>
+        </div>
+
+        <div id="game-screen" style="display: none;">
+            <section class="info-panel OnScreenInfo">
+                <div class="info-item">
+                    <p>Expected Winner : <span id="Expected-Winner" class="Ex"></span></p>
+                </div>
+                <div class="info-item">
+                    <p>Turn : <span id="Turn">Player1</span></p>
+                </div>
+                <div class="info-item">
+                    <p>Sum : <span id="Sum">0</span></p>
+                </div>
+                <div class="info-item">
+                    <p>Info : <span id="Info">0</span></p>
+                </div>
+                <div class="info-item">
+                    <p>Left Turns : <span id="Left-Turns">0</span></p>
+                </div>
+            </section>
+
+            <div id="Turn-Indicator" class="turn-indicator player1-turn">Player First Player Turn</div>
+
+            <section class="pn">
+                <div class="numbers-grid container" id="container"></div>
+                <div id="Winner" class="winner-display">The Winner is : <span id="Winner-Name"></span></div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAH8xioaqqQf8Fijo4BWujFV8yBNJccZiA",
+            authDomain: "alice-3ffcf.firebaseapp.com",
+            databaseURL: "https://alice-3ffcf-default-rtdb.firebaseio.com",
+            projectId: "alice-3ffcf",
+            storageBucket: "alice-3ffcf.firebasestorage.app",
+            messagingSenderId: "36062752063",
+            appId: "1:36062752063:web:75d82e0c29d5ffa83f778a",
+            measurementId: "G-LYN0WNTBY3"
+        };
+
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+
+        let gameId = '';
+        let playerNumber = 0;
+        let RandArray = [];
+        let Turn = 0;
+        let PLayer1Sum = 0;
+        let LeftTurns = 0;
+        let gameActive = false;
+        let playerId = Math.random().toString(36).substring(2, 15);
+
+
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const gameIdInput = document.getElementById('game-id-input');
+        const joinGameBtn = document.getElementById('join-game-btn');
+        const createGameBtn = document.getElementById('create-game-btn');
+        const playerInfo = document.getElementById('player-info');
+        const waitingMessage = document.getElementById('waiting-message');
+        const OnScreenTurn = document.getElementById("Turn");
+        const TurnIndicator = document.getElementById("Turn-Indicator");
+        const OnScreenSum = document.getElementById("Sum");
+        const OnScreenExpectedWinner = document.getElementById("Expected-Winner");
+        const OnScreenInfo = document.getElementById('Info');
+        const OnScreenWinner = document.getElementById('Winner');
+        const OnScreenWinnerName = document.getElementById('Winner-Name');
+        const OnScreenLeftTurns = document.getElementById('Left-Turns');
+        const Container = document.getElementById('container');
+
+
+        function RandomInt(From, To) {
+            return Math.floor(From + Math.random() * (To - From + 1));
+        }
+
+        function RandomIntArray(Size, From, To) {
+            let array = new Array(Size);
+            for (let i = 0; i < Size; i++) {
+                array[i] = RandomInt(From, To);
+            }
+            return array;
+        }
+
+        function Count(Array, Condition) {
+            let count = 0;
+            for (let i = 0; i < Array.length; i++) {
+                if (Condition(Array[i])) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        function GetPlayer1State() {
+            let OddCount = Count(RandArray, a => a % 2 == 1);
+            let EvenCount = RandArray.length - OddCount;
+            
+            return {
+                Turns: Math.floor((RandArray.length + 1) / 2),
+                Odds: Math.floor((OddCount + 1) / 2),
+                Evens: Math.floor((EvenCount + 1) / 2)
+            };
+        }
+
+        function WhoWin() {
+            let Player1Info = GetPlayer1State();
+            let Result = (Player1Info.Odds + Player1Info.Evens == Player1Info.Turns) && (Player1Info.Odds % 2 == 1);
+            return Result ? "Player2" : "Player1";
+        }
+
+        function ObjectToString(Obj) {
+            let StrObj = "{";
+            for (let Key in Obj){
+                StrObj += Key.toString() + ' : ' + Obj[Key] + ', ';        
+            }
+            StrObj = StrObj.slice(0, -2);
+            StrObj += '}';
+            return StrObj;
+        }
+
+        function UpdateTurnDisplay() {
+            OnScreenTurn.textContent = Turn ? "Player2" : "Player1";
+            TurnIndicator.textContent = Turn ? "Player 2's Turn" : "Player 1's Turn";
+            TurnIndicator.className = Turn ? "turn-indicator player2-turn" : "turn-indicator player1-turn";
+        }
+
+        function OnGameEnd(){
+            OnScreenWinnerName.innerText = "Player " + (1 + PLayer1Sum % 2).toString();
+            OnScreenWinner.classList.add('show');
+            gameActive = false;
+        }
+
+        function createGameBoard() {
+            Container.innerHTML = '';
+            
+            for (let i = 0; i < RandArray.length; i++) {
+                let btn = document.createElement("button");
+                btn.className = 'number-btn ' + (RandArray[i] % 2 === 1 ? 'odd' : 'even');
+                btn.textContent = RandArray[i];
+                btn.id = 'btn-' + i;
+                btn.disabled = true;
+
+                btn.onclick = function() {
+                    if (!gameActive || (Turn !== (playerNumber - 1))) return;
+                    
+                    btn.disabled = true;
+                    if (playerNumber === 1) {
+                        PLayer1Sum += Number(btn.textContent);
+                        OnScreenSum.innerText = PLayer1Sum;
+                    }
+
+
+                    const updates = {};
+                    updates[`games/${gameId}/selectedButtons/${i}`] = true;
+                    updates[`games/${gameId}/currentTurn`] = Turn === 0 ? 1 : 0;
+                    updates[`games/${gameId}/player1Sum`] = PLayer1Sum;
+                    updates[`games/${gameId}/leftTurns`] = LeftTurns - 1;
+                    
+                    database.ref().update(updates);
+                };
+
+                Container.appendChild(btn);
+            }
+
+            OnScreenExpectedWinner.innerText = WhoWin();
+            OnScreenInfo.innerText = ObjectToString(GetPlayer1State());
+            OnScreenLeftTurns.innerText = LeftTurns;
+            UpdateTurnDisplay();
+        }
+
+        function initializeGame(gameData) {
+            RandArray = gameData.numbers;
+            LeftTurns = gameData.leftTurns;
+            PLayer1Sum = gameData.player1Sum || 0;
+            Turn = gameData.currentTurn || 0;
+            gameActive = true;
+            
+            createGameBoard();
+            
+
+            if (Turn === (playerNumber - 1)) {
+                for (let i = 0; i < RandArray.length; i++) {
+                    if (!gameData.selectedButtons || !gameData.selectedButtons[i]) {
+                        const btn = document.getElementById('btn-' + i);
+                        if (btn) btn.disabled = false;
+                    }
+                }
+            }
+            
+            // Show game screen
+            lobbyScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+            waitingMessage.style.display = playerNumber === 1 && !gameData.player2 ? 'block' : 'none';
+        }
+
+        // Game management functions
+        function createNewGame() {
+            gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            gameIdInput.value = gameId;
+            playerNumber = 1;
+            playerInfo.textContent = `Game ID: ${gameId} - You are Player 1`;
+            waitingMessage.style.display = 'block';
+            
+            // Generate random numbers for the game
+            const numbers = RandomIntArray(RandomInt(10, 20), 0, 10);
+            
+            // Create game in Firebase
+            database.ref(`games/${gameId}`).set({
+                player1: playerId,
+                player2: null,
+                numbers: numbers,
+                selectedButtons: {},
+                currentTurn: 0,
+                player1Sum: 0,
+                leftTurns: numbers.length
+            });
+            
+            // Listen for game updates
+            setupGameListener();
+        }
+
+        function joinExistingGame() {
+            gameId = gameIdInput.value.trim();
+            if (!gameId) {
+                alert('Please enter a game ID');
+                return;
+            }
+            
+            const gameRef = database.ref(`games/${gameId}`);
+            gameRef.once('value').then((snapshot) => {
+                const gameData = snapshot.val();
+                if (!gameData) {
+                    alert('Game not found');
+                    return;
+                }
+                
+                if (gameData.player2) {
+                    alert('Game is already full');
+                    return;
+                }
+                
+                playerNumber = 2;
+                playerInfo.textContent = `You are Player 2`;
+                waitingMessage.style.display = 'none';
+                
+                // Join the game
+                gameRef.update({
+                    player2: playerId
+                });
+                
+                // Listen for game updates
+                setupGameListener();
+            });
+        }
+
+        function setupGameListener() {
+            database.ref(`games/${gameId}`).on('value', (snapshot) => {
+                const gameData = snapshot.val();
+                if (!gameData) return;
+                
+                // Check if opponent disconnected
+                if (playerNumber === 1 && gameData.player2 === null && gameActive) {
+                    alert('Player 2 has disconnected');
+                    resetGame();
+                    return;
+                }
+                
+                if (playerNumber === 2 && gameData.player1 === null && gameActive) {
+                    alert('Player 1 has disconnected');
+                    resetGame();
+                    return;
+                }
+                
+                // Initialize or update game
+                if (!gameActive && ((playerNumber === 1 && gameData.player2) || playerNumber === 2)) {
+                    initializeGame(gameData);
+                } else if (gameActive) {
+                    RandArray = gameData.numbers;
+                    Turn = gameData.currentTurn || 0;
+                    PLayer1Sum = gameData.player1Sum || 0;
+                    LeftTurns = gameData.leftTurns || 0;
+                    
+                    // Update the board
+                    for (let i = 0; i < RandArray.length; i++) {
+                        const btn = document.getElementById('btn-' + i);
+                        if (btn) {
+                            btn.disabled = gameData.selectedButtons && gameData.selectedButtons[i];
+                        }
+                    }
+                    
+                    OnScreenSum.innerText = PLayer1Sum;
+                    OnScreenLeftTurns.innerText = LeftTurns;
+                    UpdateTurnDisplay();
+                    
+                    // Enable buttons if it's our turn
+                    if (Turn === (playerNumber - 1)) {
+                        for (let i = 0; i < RandArray.length; i++) {
+                            if (!gameData.selectedButtons || !gameData.selectedButtons[i]) {
+                                const btn = document.getElementById('btn-' + i);
+                                if (btn) btn.disabled = false;
+                            }
+                        }
+                    }
+                    
+                    if (LeftTurns === 0) {
+                        OnGameEnd();
+                    }
+                }
+            });
+        }
+
+        function resetGame() {
+            database.ref(`games/${gameId}`).off();
+            gameActive = false;
+            lobbyScreen.style.display = 'block';
+            gameScreen.style.display = 'none';
+            OnScreenWinner.classList.remove('show');
+        }
+
+        // Event listeners
+        createGameBtn.addEventListener('click', createNewGame);
+        joinGameBtn.addEventListener('click', joinExistingGame);
+
+        // Initialize with random game ID
+        gameIdInput.value = Math.random().toString(36).substring(2, 8).toUpperCase();
+    </script>
+</body>
+</html>
