@@ -1,4 +1,4 @@
-const firebaseConfig = {
+    const firebaseConfig = {
             apiKey: "AIzaSyAH8xioaqqQf8Fijo4BWujFV8yBNJccZiA",
             authDomain: "alice-3ffcf.firebaseapp.com",
             databaseURL: "https://alice-3ffcf-default-rtdb.firebaseio.com",
@@ -40,20 +40,18 @@ const firebaseConfig = {
         const OnScreenWinnerName = document.getElementById('Winner-Name');
         const OnScreenLeftTurns = document.getElementById('Left-Turns');
         const Container = document.getElementById('container');
+        const quitBtn = document.getElementById('quit-btn');
+        const newGameBtn = document.getElementById('new-game-btn');
 
-        // Local storage key for game persistence
         const SAVED_GAME_KEY = 'alice_bob_saved_game';
 
-        // Initialize the game
         function init() {
             waitingMessage.style.display = 'none';
             
-            // Check for saved game state
             const savedGame = localStorage.getItem(SAVED_GAME_KEY);
             if (savedGame) {
                 const { gameId: savedGameId, playerId: savedPlayerId, playerNumber: savedPlayerNumber } = JSON.parse(savedGame);
                 
-                // Check if the game still exists
                 database.ref(`games/${savedGameId}`).once('value').then((snapshot) => {
                     const gameData = snapshot.val();
                     if (gameData) {
@@ -154,6 +152,9 @@ const firebaseConfig = {
             OnScreenWinner.classList.add('show');
             gameActive = false;
             clearInterval(turnTimer);
+            
+            // Show new game button
+            newGameBtn.style.display = 'block';
         }
 
         function createGameBoard() {
@@ -294,6 +295,7 @@ const firebaseConfig = {
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
             waitingMessage.style.display = (playerNumber === 1 && !gameData.player2) ? 'block' : 'none';
+            newGameBtn.style.display = 'none';
         }
 
         function createNewGame() {
@@ -438,12 +440,44 @@ const firebaseConfig = {
             OnScreenWinner.classList.remove('show');
             document.getElementById('chat-messages').innerHTML = '';
             waitingMessage.style.display = 'none';
+            newGameBtn.style.display = 'none';
         }
 
+        function quitGame() {
+            if (!gameId) return;
+            
+            if (confirm('Are you sure you want to quit the game?')) {
+                if (playerNumber === 1) {
+                    // Player 1 is quitting - delete the game
+                    database.ref(`games/${gameId}`).remove()
+                        .then(() => {
+                            alert('You have left the game. The game has been ended.');
+                            resetGame();
+                        });
+                } else if (playerNumber === 2) {
+                    // Player 2 is quitting - just remove them from the game
+                    database.ref(`games/${gameId}/player2`).remove()
+                        .then(() => {
+                            alert('You have left the game.');
+                            resetGame();
+                        });
+                } else {
+                    // Spectator is quitting
+                    resetGame();
+                }
+            }
+        }
+
+        function startNewGame() {
+            resetGame();
+            createNewGame();
+        }
 
         // Event listeners
         createGameBtn.addEventListener('click', createNewGame);
         joinGameBtn.addEventListener('click', joinExistingGame);
+        quitBtn.addEventListener('click', quitGame);
+        newGameBtn.addEventListener('click', startNewGame);
 
         window.addEventListener('load', init);
         gameIdInput.value = '';
