@@ -222,15 +222,15 @@
     <script>
 
         const firebaseConfig = {
-            apiKey: "AIzaSyAH8xioaqqQf8Fijo4BWujFV8yBNJccZiA",
-            authDomain: "alice-3ffcf.firebaseapp.com",
-            databaseURL: "https://alice-3ffcf-default-rtdb.firebaseio.com",
-            projectId: "alice-3ffcf",
-            storageBucket: "alice-3ffcf.firebasestorage.app",
-            messagingSenderId: "36062752063",
-            appId: "1:36062752063:web:75d82e0c29d5ffa83f778a",
-            measurementId: "G-LYN0WNTBY3"
-        };
+          apiKey: process.env.FIREBASE_API_KEY,
+          authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+          databaseURL: process.env.FIREBASE_DATABASE_URL,
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+          messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+          appId: process.env.FIREBASE_APP_ID,
+          measurementId: process.env.FIREBASE_MEASUREMENT_ID
+};
 
 
         firebase.initializeApp(firebaseConfig);
