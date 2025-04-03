@@ -1,4 +1,4 @@
-  const firebaseConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyAH8xioaqqQf8Fijo4BWujFV8yBNJccZiA",
             authDomain: "alice-3ffcf.firebaseapp.com",
             databaseURL: "https://alice-3ffcf-default-rtdb.firebaseio.com",
@@ -9,10 +9,8 @@
             measurementId: "G-LYN0WNTBY3"
         };
 
-
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-
 
         let gameId = '';
         let playerNumber = 0;
@@ -22,7 +20,8 @@
         let LeftTurns = 0;
         let gameActive = false;
         let playerId = Math.random().toString(36).substring(2, 15);
-
+        let chatRef;
+        let turnTimer;
 
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
@@ -40,9 +39,9 @@
         const OnScreenWinnerName = document.getElementById('Winner-Name');
         const OnScreenLeftTurns = document.getElementById('Left-Turns');
         const Container = document.getElementById('container');
-
         
-        waitingMessage.style.display = 'none'
+        waitingMessage.style.display = 'none';
+
         function RandomInt(From, To) {
             return Math.floor(From + Math.random() * (To - From + 1));
         }
@@ -93,15 +92,22 @@
         }
 
         function UpdateTurnDisplay() {
-            OnScreenTurn.textContent = Turn ? "Belghiria" : "Hicham";
-            TurnIndicator.textContent = Turn ? "Belghiria's Turn" : "Hicham's Turn";
-            TurnIndicator.className = Turn ? "turn-indicator player2-turn" : "turn-indicator player1-turn";
+            if (playerNumber === 0) {
+                OnScreenTurn.textContent = "Spectating";
+                TurnIndicator.textContent = Turn ? "Belghiria's Turn" : "Hicham's Turn";
+                TurnIndicator.className = "turn-indicator spectator-view";
+            } else {
+                OnScreenTurn.textContent = Turn ? "Belghiria" : "Hicham";
+                TurnIndicator.textContent = Turn ? "Belghiria's Turn" : "Hicham's Turn";
+                TurnIndicator.className = Turn ? "turn-indicator player2-turn" : "turn-indicator player1-turn";
+            }
         }
 
-    function OnGameEnd(){
+        function OnGameEnd(){
             OnScreenWinnerName.innerText = WhoWin();
             OnScreenWinner.classList.add('show');
             gameActive = false;
+            clearInterval(turnTimer);
         }
 
         function createGameBoard() {
@@ -115,14 +121,13 @@
                 btn.disabled = true;
 
                 btn.onclick = function() {
-                    if (!gameActive || (Turn !== (playerNumber - 1))) return;
+                    if (!gameActive || (Turn !== (playerNumber - 1)) || playerNumber === 0) return;
                     
                     btn.disabled = true;
                     if (playerNumber === 1) {
                         PLayer1Sum += Number(btn.textContent);
                         OnScreenSum.innerText = PLayer1Sum;
                     }
-
 
                     const updates = {};
                     updates[`games/${gameId}/selectedButtons/${i}`] = true;
@@ -142,17 +147,100 @@
             UpdateTurnDisplay();
         }
 
+        function startTurnTimer() {
+            clearInterval(turnTimer);
+            let turnTimeLeft = 30;
+            document.getElementById('timer').textContent = turnTimeLeft;
+            turnTimer = setInterval(() => {
+                turnTimeLeft--;
+                document.getElementById('timer').textContent = turnTimeLeft;
+                if (turnTimeLeft <= 0) {
+                    clearInterval(turnTimer);
+                    if (gameActive && (Turn === (playerNumber - 1) && playerNumber !== 0) ){
+                        // Auto-pass turn
+                        const updates = {};
+                        updates[`games/${gameId}/currentTurn`] = Turn === 0 ? 1 : 0;
+                        database.ref().update(updates);
+                    }
+                }
+            }, 1000);
+        }
+
+        function setupChat() {
+            // Clear existing messages
+            document.getElementById('chat-messages').innerHTML = '';
+            
+            // Send message handler
+            document.getElementById('send-message').addEventListener('click', sendMessage);
+            document.getElementById('chat-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendMessage();
+            });
+            
+            // Listen for new messages
+            chatRef.limitToLast(50).on('child_added', (snapshot) => {
+                const msg = snapshot.val();
+                displayMessage(msg);
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (message && gameActive) {
+                const msgData = {
+                    text: message,
+                    player: playerNumber || 'spectator',
+                    senderId: playerId,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                };
+                
+                chatRef.push(msgData);
+                input.value = '';
+            }
+        }
+
+        function displayMessage(msg) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const msgElement = document.createElement('div');
+            
+            let playerClass = '';
+            let displayName = '';
+            
+            if (msg.player === 1) {
+                playerClass = 'player-1';
+                displayName = 'Hicham';
+            } else if (msg.player === 2) {
+                playerClass = 'player-2';
+                displayName = 'Belghiria';
+            } else {
+                playerClass = 'spectator';
+                displayName = 'Spectator';
+            }
+            
+            msgElement.className = `message ${playerClass}`;
+            msgElement.innerHTML = `<strong>${displayName}:</strong> ${msg.text}`;
+            
+            messagesDiv.appendChild(msgElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
         function initializeGame(gameData) {
-            RandArray = gameData.numbers;
-            LeftTurns = gameData.leftTurns;
+            RandArray = gameData.numbers || [];
+            LeftTurns = gameData.leftTurns || RandArray.length;
             PLayer1Sum = gameData.player1Sum || 0;
             Turn = gameData.currentTurn || 0;
             gameActive = true;
             
             createGameBoard();
+            startTurnTimer();
             
+            // Initialize chat
+            chatRef = database.ref(`games/${gameId}/messages`);
+            setupChat();
 
-            if (Turn === (playerNumber - 1)) {
+            // Enable buttons if it's our turn
+            if (playerNumber > 0 && Turn === (playerNumber - 1)) {
                 for (let i = 0; i < RandArray.length; i++) {
                     if (!gameData.selectedButtons || !gameData.selectedButtons[i]) {
                         const btn = document.getElementById('btn-' + i);
@@ -164,10 +252,9 @@
             // Show game screen
             lobbyScreen.style.display = 'none';
             gameScreen.style.display = 'block';
-            waitingMessage.style.display = playerNumber === 1 && !gameData.player2 ? 'block' : 'none';
+            waitingMessage.style.display = (playerNumber === 1 && !gameData.player2) ? 'block' : 'none';
         }
 
-        // Game management functions
         function createNewGame() {
             gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
             gameIdInput.value = gameId;
@@ -186,7 +273,8 @@
                 selectedButtons: {},
                 currentTurn: 0,
                 player1Sum: 0,
-                leftTurns: numbers.length
+                leftTurns: numbers.length,
+                messages: {}
             });
             
             // Listen for game updates
@@ -208,21 +296,26 @@
                     return;
                 }
                 
-                if (gameData.player2) {
-                    alert('Game is already full');
-                    return;
+                if (gameData.player1 && gameData.player2) {
+                    if (confirm('Game is full. Would you like to spectate?')) {
+                        playerNumber = 0; // Spectator
+                        playerInfo.textContent = `You are Spectating`;
+                        initializeGame(gameData);
+                        return;
+                    } else {
+                        return;
+                    }
                 }
                 
-                playerNumber = 2;
-                playerInfo.textContent = `You are Player 2`;
+                playerNumber = gameData.player1 ? 2 : 1;
+                playerInfo.textContent = `You are Player ${playerNumber}`;
                 waitingMessage.style.display = 'none';
                 
                 // Join the game
-                gameRef.update({
-                    player2: playerId
-                });
+                const updates = {};
+                updates[`games/${gameId}/player${playerNumber}`] = playerId;
+                database.ref().update(updates);
                 
-                // Listen for game updates
                 setupGameListener();
             });
         }
@@ -246,10 +339,10 @@
                 }
                 
                 // Initialize or update game
-                if (!gameActive && ((playerNumber === 1 && gameData.player2) || playerNumber === 2)) {
+                if (!gameActive && ((playerNumber === 1 && gameData.player2) || playerNumber === 2 || playerNumber === 0)) {
                     initializeGame(gameData);
                 } else if (gameActive) {
-                    RandArray = gameData.numbers;
+                    RandArray = gameData.numbers || RandArray;
                     Turn = gameData.currentTurn || 0;
                     PLayer1Sum = gameData.player1Sum || 0;
                     LeftTurns = gameData.leftTurns || 0;
@@ -258,23 +351,16 @@
                     for (let i = 0; i < RandArray.length; i++) {
                         const btn = document.getElementById('btn-' + i);
                         if (btn) {
-                            btn.disabled = gameData.selectedButtons && gameData.selectedButtons[i];
+                            btn.disabled = (gameData.selectedButtons && gameData.selectedButtons[i]) || 
+                                          (playerNumber === 0) || 
+                                          (Turn !== (playerNumber - 1));
                         }
                     }
                     
                     OnScreenSum.innerText = PLayer1Sum;
                     OnScreenLeftTurns.innerText = LeftTurns;
                     UpdateTurnDisplay();
-                    
-                    // Enable buttons if it's our turn
-                    if (Turn === (playerNumber - 1)) {
-                        for (let i = 0; i < RandArray.length; i++) {
-                            if (!gameData.selectedButtons || !gameData.selectedButtons[i]) {
-                                const btn = document.getElementById('btn-' + i);
-                                if (btn) btn.disabled = false;
-                            }
-                        }
-                    }
+                    startTurnTimer();
                     
                     if (LeftTurns === 0) {
                         OnGameEnd();
@@ -284,15 +370,21 @@
         }
 
         function resetGame() {
-            database.ref(`games/${gameId}`).off();
+            if (gameId) {
+                database.ref(`games/${gameId}`).off();
+            }
+            if (chatRef) {
+                chatRef.off();
+            }
+            clearInterval(turnTimer);
             gameActive = false;
             lobbyScreen.style.display = 'block';
             gameScreen.style.display = 'none';
             OnScreenWinner.classList.remove('show');
+            document.getElementById('chat-messages').innerHTML = '';
         }
 
-        // Event listeners
         createGameBtn.addEventListener('click', createNewGame);
         joinGameBtn.addEventListener('click', joinExistingGame);
 
-        gameIdInput.value = ''
+        gameIdInput.value = '';
