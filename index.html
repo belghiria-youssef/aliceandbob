@@ -179,7 +179,6 @@
             color: #7f8c8d;
             font-style: italic;
         }
-        /* Chat System Styles */
         .chat-container {
             margin-top: 20px;
             border: 1px solid #ddd;
@@ -254,7 +253,34 @@
         .help-panel li {
             margin-bottom: 8px;
         }
-        /* Mobile Responsiveness */
+        .game-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .game-controls button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .quit-btn {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .quit-btn:hover {
+            background-color: #c0392b;
+        }
+        .new-game-btn {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .new-game-btn:hover {
+            background-color: #27ae60;
+        }
         @media (max-width: 600px) {
             .number-btn {
                 width: 50px;
@@ -269,6 +295,10 @@
             }
             .chat-messages {
                 height: 100px;
+            }
+            .game-controls {
+                flex-direction: column;
+                gap: 10px;
             }
         }
     </style>
@@ -329,7 +359,11 @@
                 <div id="Winner" class="winner-display">The Winner is : <span id="Winner-Name"></span></div>
             </section>
 
-            <!-- Chat System -->
+            <div class="game-controls">
+                <button id="quit-btn" class="quit-btn">Quit Game</button>
+                <button id="new-game-btn" class="new-game-btn" style="display: none;">Play New Game</button>
+            </div>
+
             <div class="chat-container">
                 <div class="chat-header">Game Chat</div>
                 <div id="chat-messages" class="chat-messages"></div>
