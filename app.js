@@ -1,4 +1,4 @@
-    const firebaseConfig = {
+const firebaseConfig = {
             apiKey: "AIzaSyAH8xioaqqQf8Fijo4BWujFV8yBNJccZiA",
             authDomain: "alice-3ffcf.firebaseapp.com",
             databaseURL: "https://alice-3ffcf-default-rtdb.firebaseio.com",
@@ -9,9 +9,11 @@
             measurementId: "G-LYN0WNTBY3"
         };
 
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
+        // Game state variables
         let gameId = '';
         let playerNumber = 0;
         let RandArray = [];
@@ -24,11 +26,13 @@
         let turnTimer;
         let currentGameRef = null;
 
+        // DOM elements
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
         const gameIdInput = document.getElementById('game-id-input');
         const joinGameBtn = document.getElementById('join-game-btn');
         const createGameBtn = document.getElementById('create-game-btn');
+        const copyGameIdBtn = document.getElementById('copy-game-id');
         const playerInfo = document.getElementById('player-info');
         const waitingMessage = document.getElementById('waiting-message');
         const OnScreenTurn = document.getElementById("Turn");
@@ -43,37 +47,71 @@
         const quitBtn = document.getElementById('quit-btn');
         const newGameBtn = document.getElementById('new-game-btn');
 
+        // Constants
         const SAVED_GAME_KEY = 'alice_bob_saved_game';
+        const TURN_TIME_LIMIT = 30; // seconds
 
+        // Initialize the game
         function init() {
             waitingMessage.style.display = 'none';
             
+            // Check for saved game state
             const savedGame = localStorage.getItem(SAVED_GAME_KEY);
             if (savedGame) {
-                const { gameId: savedGameId, playerId: savedPlayerId, playerNumber: savedPlayerNumber } = JSON.parse(savedGame);
-                
-                database.ref(`games/${savedGameId}`).once('value').then((snapshot) => {
-                    const gameData = snapshot.val();
-                    if (gameData) {
-                        // Rejoin the game
-                        gameId = savedGameId;
-                        playerId = savedPlayerId;
-                        playerNumber = savedPlayerNumber;
-                        gameIdInput.value = gameId;
-                        
-                        if (playerNumber === 0) {
-                            playerInfo.textContent = `You are Spectating`;
+                try {
+                    const { gameId: savedGameId, playerId: savedPlayerId, playerNumber: savedPlayerNumber } = JSON.parse(savedGame);
+                    
+                    database.ref(`games/${savedGameId}`).once('value').then((snapshot) => {
+                        const gameData = snapshot.val();
+                        if (gameData) {
+                            // Rejoin the game
+                            gameId = savedGameId;
+                            playerId = savedPlayerId;
+                            playerNumber = savedPlayerNumber;
+                            gameIdInput.value = gameId;
+                            
+                            updatePlayerInfo();
+                            setupGameListener();
                         } else {
-                            playerInfo.textContent = `You are Player ${playerNumber}`;
+                            localStorage.removeItem(SAVED_GAME_KEY);
                         }
-                        
-                        setupGameListener();
-                        return;
-                    } else {
+                    }).catch(error => {
+                        console.error("Error checking saved game:", error);
                         localStorage.removeItem(SAVED_GAME_KEY);
-                    }
-                });
+                    });
+                } catch (e) {
+                    console.error("Error parsing saved game:", e);
+                    localStorage.removeItem(SAVED_GAME_KEY);
+                }
             }
+
+            // Set up event listeners
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            createGameBtn.addEventListener('click', createNewGame);
+            joinGameBtn.addEventListener('click', joinExistingGame);
+            quitBtn.addEventListener('click', quitGame);
+            newGameBtn.addEventListener('click', startNewGame);
+            copyGameIdBtn.addEventListener('click', copyGameId);
+            
+            // Handle Enter key in game ID input
+            gameIdInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    joinExistingGame();
+                }
+            });
+            
+            // Handle Enter key in chat input
+            document.getElementById('chat-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            // Send message button
+            document.getElementById('send-message').addEventListener('click', sendMessage);
         }
 
         function saveGameState() {
@@ -83,6 +121,14 @@
                     playerId,
                     playerNumber
                 }));
+            }
+        }
+
+        function updatePlayerInfo() {
+            if (playerNumber === 0) {
+                playerInfo.textContent = `You are Spectating`;
+            } else {
+                playerInfo.textContent = `You are Player ${playerNumber} (${playerNumber === 1 ? 'Hicham' : 'Belghiria'})`;
             }
         }
 
@@ -128,7 +174,9 @@
         function ObjectToString(Obj) {
             let StrObj = "{";
             for (let Key in Obj){
-                StrObj += Key.toString() + ' : ' + Obj[Key] + ', ';        
+                if (Obj.hasOwnProperty(Key)) {
+                    StrObj += Key.toString() + ' : ' + Obj[Key] + ', ';        
+                }
             }
             StrObj = StrObj.slice(0, -2);
             StrObj += '}';
@@ -167,7 +215,7 @@
                 btn.id = 'btn-' + i;
                 btn.disabled = true;
 
-                btn.onclick = function() {
+                btn.addEventListener('click', function() {
                     if (!gameActive || (Turn !== (playerNumber - 1))) return;
                     
                     btn.disabled = true;
@@ -182,8 +230,11 @@
                     updates[`games/${gameId}/player1Sum`] = PLayer1Sum;
                     updates[`games/${gameId}/leftTurns`] = LeftTurns - 1;
                     
-                    database.ref().update(updates);
-                };
+                    database.ref().update(updates).catch(error => {
+                        console.error("Error updating game state:", error);
+                        alert("Error making your move. Please try again.");
+                    });
+                });
 
                 Container.appendChild(btn);
             }
@@ -196,18 +247,22 @@
 
         function startTurnTimer() {
             clearInterval(turnTimer);
-            let turnTimeLeft = 30;
+            let turnTimeLeft = TURN_TIME_LIMIT;
             document.getElementById('timer').textContent = turnTimeLeft;
+            
             turnTimer = setInterval(() => {
                 turnTimeLeft--;
                 document.getElementById('timer').textContent = turnTimeLeft;
+                
                 if (turnTimeLeft <= 0) {
                     clearInterval(turnTimer);
                     if (gameActive && (Turn === (playerNumber - 1)) && playerNumber !== 0) {
                         // Auto-pass turn
                         const updates = {};
                         updates[`games/${gameId}/currentTurn`] = Turn === 0 ? 1 : 0;
-                        database.ref().update(updates);
+                        database.ref().update(updates).catch(error => {
+                            console.error("Error passing turn:", error);
+                        });
                     }
                 }
             }, 1000);
@@ -215,11 +270,6 @@
 
         function setupChat() {
             document.getElementById('chat-messages').innerHTML = '';
-            
-            document.getElementById('send-message').addEventListener('click', sendMessage);
-            document.getElementById('chat-input').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendMessage();
-            });
             
             chatRef = database.ref(`games/${gameId}/messages`);
             chatRef.limitToLast(50).on('child_added', (snapshot) => {
@@ -240,7 +290,10 @@
                     timestamp: firebase.database.ServerValue.TIMESTAMP
                 };
                 
-                chatRef.push(msgData);
+                chatRef.push(msgData).catch(error => {
+                    console.error("Error sending message:", error);
+                    alert("Failed to send message. Please try again.");
+                });
                 input.value = '';
             }
         }
@@ -302,8 +355,9 @@
             gameId = Math.random().toString(36).substring(2, 8).toUpperCase();
             gameIdInput.value = gameId;
             playerNumber = 1;
-            playerInfo.textContent = `Game ID: ${gameId} - You are Player 1`;
+            updatePlayerInfo();
             waitingMessage.style.display = 'block';
+            copyGameIdBtn.style.display = 'inline-block';
             
             // Generate random numbers for the game
             const numbers = RandomIntArray(RandomInt(10, 20), 0, 10);
@@ -318,10 +372,19 @@
                 player1Sum: 0,
                 leftTurns: numbers.length,
                 messages: {}
+            }).then(() => {
+                saveGameState();
+                setupGameListener();
+            }).catch(error => {
+                console.error("Error creating game:", error);
+                alert("Failed to create game. Please try again.");
             });
-            
-            saveGameState();
-            setupGameListener();
+        }
+
+        function copyGameId() {
+            gameIdInput.select();
+            document.execCommand('copy');
+            alert('Game ID copied to clipboard!');
         }
 
         function joinExistingGame() {
@@ -342,7 +405,7 @@
                 if (gameData.player1 && gameData.player2) {
                     if (confirm('Game is full. Would you like to spectate?')) {
                         playerNumber = 0; // Spectator
-                        playerInfo.textContent = `You are Spectating`;
+                        updatePlayerInfo();
                         saveGameState();
                         initializeGame(gameData);
                         return;
@@ -352,16 +415,24 @@
                 }
                 
                 playerNumber = gameData.player1 ? 2 : 1;
-                playerInfo.textContent = `You are Player ${playerNumber}`;
+                updatePlayerInfo();
                 waitingMessage.style.display = 'none';
+                copyGameIdBtn.style.display = 'none';
                 
                 // Join the game
                 const updates = {};
                 updates[`games/${gameId}/player${playerNumber}`] = playerId;
-                database.ref().update(updates);
                 
-                saveGameState();
-                setupGameListener();
+                database.ref().update(updates).then(() => {
+                    saveGameState();
+                    setupGameListener();
+                }).catch(error => {
+                    console.error("Error joining game:", error);
+                    alert("Failed to join game. Please try again.");
+                });
+            }).catch(error => {
+                console.error("Error checking game:", error);
+                alert("Error checking game. Please try again.");
             });
         }
 
@@ -377,6 +448,7 @@
                 if (!gameData) {
                     // Game was deleted
                     resetGame();
+                    alert('The game has been ended by the host.');
                     return;
                 }
                 
@@ -441,6 +513,8 @@
             document.getElementById('chat-messages').innerHTML = '';
             waitingMessage.style.display = 'none';
             newGameBtn.style.display = 'none';
+            copyGameIdBtn.style.display = 'none';
+            gameIdInput.value = '';
         }
 
         function quitGame() {
@@ -453,6 +527,10 @@
                         .then(() => {
                             alert('You have left the game. The game has been ended.');
                             resetGame();
+                        })
+                        .catch(error => {
+                            console.error("Error quitting game:", error);
+                            alert("Error quitting game. Please try again.");
                         });
                 } else if (playerNumber === 2) {
                     // Player 2 is quitting - just remove them from the game
@@ -460,6 +538,10 @@
                         .then(() => {
                             alert('You have left the game.');
                             resetGame();
+                        })
+                        .catch(error => {
+                            console.error("Error quitting game:", error);
+                            alert("Error quitting game. Please try again.");
                         });
                 } else {
                     // Spectator is quitting
@@ -473,11 +555,4 @@
             createNewGame();
         }
 
-        // Event listeners
-        createGameBtn.addEventListener('click', createNewGame);
-        joinGameBtn.addEventListener('click', joinExistingGame);
-        quitBtn.addEventListener('click', quitGame);
-        newGameBtn.addEventListener('click', startNewGame);
-
         window.addEventListener('load', init);
-        gameIdInput.value = '';
