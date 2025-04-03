@@ -236,6 +236,24 @@
             background-color: #e8f5e9;
             border-left: 3px solid #2ecc71;
         }
+        /* Help Panel Styles */
+        .help-panel {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .help-panel h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .help-panel ul {
+            padding-left: 20px;
+        }
+        .help-panel li {
+            margin-bottom: 8px;
+        }
         /* Mobile Responsiveness */
         @media (max-width: 600px) {
             .number-btn {
@@ -261,8 +279,21 @@
 <body>
     <div class="game-wrapper" id="game-wrapper">
         <div class="lobby-screen" id="lobby-screen">
-            <h2>Welcome To </h2>
-            <input type="text" id="game-id-input" placeholder="Create Game or Enter Id" >
+            <h2>Welcome To Alice and Bob Game</h2>
+            
+            <!-- Help Panel -->
+            <div class="help-panel">
+                <h3>How to Play:</h3>
+                <ul>
+                    <li>Player 1 (Hicham) and Player 2 (Belghiria) take turns selecting numbers</li>
+                    <li>The game automatically determines the expected winner based on number selection</li>
+                    <li>Players take turns picking numbers until all are selected</li>
+                    <li>The winner is calculated based on the game's algorithm</li>
+                    <li>Create a new game or join an existing one using the game ID</li>
+                </ul>
+            </div>
+            
+            <input type="text" id="game-id-input" placeholder="Create Game or Enter ID">
             <button id="join-game-btn">Join Game</button>
             <button id="create-game-btn">Create New Game</button>
             <div class="player-info" id="player-info"></div>
