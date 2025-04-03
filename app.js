@@ -1,4 +1,4 @@
-        const firebaseConfig = {
+const firebaseConfig = {
             apiKey: "AIzaSyAH8xioaqqQf8Fijo4BWujFV8yBNJccZiA",
             authDomain: "alice-3ffcf.firebaseapp.com",
             databaseURL: "https://alice-3ffcf-default-rtdb.firebaseio.com",
@@ -22,6 +22,7 @@
         let playerId = Math.random().toString(36).substring(2, 15);
         let chatRef;
         let turnTimer;
+        let currentGameRef = null;
 
         const lobbyScreen = document.getElementById('lobby-screen');
         const gameScreen = document.getElementById('game-screen');
@@ -39,8 +40,53 @@
         const OnScreenWinnerName = document.getElementById('Winner-Name');
         const OnScreenLeftTurns = document.getElementById('Left-Turns');
         const Container = document.getElementById('container');
-        
-        waitingMessage.style.display = 'none';
+
+        // Local storage key for game persistence
+        const SAVED_GAME_KEY = 'alice_bob_saved_game';
+
+        // Initialize the game
+        function init() {
+            waitingMessage.style.display = 'none';
+            
+            // Check for saved game state
+            const savedGame = localStorage.getItem(SAVED_GAME_KEY);
+            if (savedGame) {
+                const { gameId: savedGameId, playerId: savedPlayerId, playerNumber: savedPlayerNumber } = JSON.parse(savedGame);
+                
+                // Check if the game still exists
+                database.ref(`games/${savedGameId}`).once('value').then((snapshot) => {
+                    const gameData = snapshot.val();
+                    if (gameData) {
+                        // Rejoin the game
+                        gameId = savedGameId;
+                        playerId = savedPlayerId;
+                        playerNumber = savedPlayerNumber;
+                        gameIdInput.value = gameId;
+                        
+                        if (playerNumber === 0) {
+                            playerInfo.textContent = `You are Spectating`;
+                        } else {
+                            playerInfo.textContent = `You are Player ${playerNumber}`;
+                        }
+                        
+                        setupGameListener();
+                        return;
+                    } else {
+                        localStorage.removeItem(SAVED_GAME_KEY);
+                    }
+                });
+            }
+        }
+
+        function saveGameState() {
+            if (gameId) {
+                localStorage.setItem(SAVED_GAME_KEY, JSON.stringify({
+                    gameId,
+                    playerId,
+                    playerNumber
+                }));
+            }
+        }
 
         function RandomInt(From, To) {
             return Math.floor(From + Math.random() * (To - From + 1));
@@ -121,7 +167,7 @@
                 btn.disabled = true;
 
                 btn.onclick = function() {
-                    if (!gameActive || (Turn !== (playerNumber - 1)) || playerNumber === 0) return;
+                    if (!gameActive || (Turn !== (playerNumber - 1))) return;
                     
                     btn.disabled = true;
                     if (playerNumber === 1) {
@@ -156,7 +202,7 @@
                 document.getElementById('timer').textContent = turnTimeLeft;
                 if (turnTimeLeft <= 0) {
                     clearInterval(turnTimer);
-                    if (gameActive && (Turn === (playerNumber - 1) && playerNumber !== 0) ){
+                    if (gameActive && (Turn === (playerNumber - 1)) && playerNumber !== 0) {
                         // Auto-pass turn
                         const updates = {};
                         updates[`games/${gameId}/currentTurn`] = Turn === 0 ? 1 : 0;
@@ -167,16 +213,14 @@
         }
 
         function setupChat() {
-            // Clear existing messages
             document.getElementById('chat-messages').innerHTML = '';
             
-            // Send message handler
             document.getElementById('send-message').addEventListener('click', sendMessage);
             document.getElementById('chat-input').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') sendMessage();
             });
             
-            // Listen for new messages
+            chatRef = database.ref(`games/${gameId}/messages`);
             chatRef.limitToLast(50).on('child_added', (snapshot) => {
                 const msg = snapshot.val();
                 displayMessage(msg);
@@ -234,9 +278,6 @@
             
             createGameBoard();
             startTurnTimer();
-            
-            // Initialize chat
-            chatRef = database.ref(`games/${gameId}/messages`);
             setupChat();
 
             // Enable buttons if it's our turn
@@ -277,12 +318,12 @@
                 messages: {}
             });
             
-            // Listen for game updates
+            saveGameState();
             setupGameListener();
         }
 
         function joinExistingGame() {
-            gameId = gameIdInput.value.trim();
+            gameId = gameIdInput.value.trim().toUpperCase();
             if (!gameId) {
                 alert('Please enter a game ID');
                 return;
@@ -300,6 +341,7 @@
                     if (confirm('Game is full. Would you like to spectate?')) {
                         playerNumber = 0; // Spectator
                         playerInfo.textContent = `You are Spectating`;
+                        saveGameState();
                         initializeGame(gameData);
                         return;
                     } else {
@@ -316,14 +358,25 @@
                 updates[`games/${gameId}/player${playerNumber}`] = playerId;
                 database.ref().update(updates);
                 
+                saveGameState();
                 setupGameListener();
             });
         }
 
         function setupGameListener() {
-            database.ref(`games/${gameId}`).on('value', (snapshot) => {
+            // Clean up previous listener
+            if (currentGameRef) {
+                currentGameRef.off();
+            }
+            
+            currentGameRef = database.ref(`games/${gameId}`);
+            currentGameRef.on('value', (snapshot) => {
                 const gameData = snapshot.val();
-                if (!gameData) return;
+                if (!gameData) {
+                    // Game was deleted
+                    resetGame();
+                    return;
+                }
                 
                 // Check if opponent disconnected
                 if (playerNumber === 1 && gameData.player2 === null && gameActive) {
@@ -370,21 +423,27 @@
         }
 
         function resetGame() {
-            if (gameId) {
-                database.ref(`games/${gameId}`).off();
+            if (currentGameRef) {
+                currentGameRef.off();
+                currentGameRef = null;
             }
             if (chatRef) {
                 chatRef.off();
             }
             clearInterval(turnTimer);
             gameActive = false;
+            localStorage.removeItem(SAVED_GAME_KEY);
             lobbyScreen.style.display = 'block';
             gameScreen.style.display = 'none';
             OnScreenWinner.classList.remove('show');
             document.getElementById('chat-messages').innerHTML = '';
+            waitingMessage.style.display = 'none';
         }
 
+
+        // Event listeners
         createGameBtn.addEventListener('click', createNewGame);
         joinGameBtn.addEventListener('click', joinExistingGame);
 
+        window.addEventListener('load', init);
         gameIdInput.value = '';
