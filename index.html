@@ -235,7 +235,6 @@
             background-color: #e8f5e9;
             border-left: 3px solid #2ecc71;
         }
-        /* Help Panel Styles */
         .help-panel {
             background-color: #f8f9fa;
             padding: 15px;
@@ -281,6 +280,13 @@
         .new-game-btn:hover {
             background-color: #27ae60;
         }
+        .copy-btn {
+            background-color: #3498db;
+            color: white;
+        }
+        .copy-btn:hover {
+            background-color: #2980b9;
+        }
         @media (max-width: 600px) {
             .number-btn {
                 width: 50px;
@@ -299,6 +305,15 @@
             .game-controls {
                 flex-direction: column;
                 gap: 10px;
+            }
+            .lobby-screen input {
+                width: 100%;
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+            .lobby-screen button {
+                width: 100%;
+                margin: 5px 0;
             }
         }
     </style>
@@ -324,8 +339,11 @@
             </div>
             
             <input type="text" id="game-id-input" placeholder="Create Game or Enter ID">
-            <button id="join-game-btn">Join Game</button>
-            <button id="create-game-btn">Create New Game</button>
+            <div class="game-controls">
+                <button id="join-game-btn">Join Game</button>
+                <button id="create-game-btn">Create New Game</button>
+                <button id="copy-game-id" class="copy-btn" style="display: none;">Copy Game ID</button>
+            </div>
             <div class="player-info" id="player-info"></div>
             <div class="waiting-message" id="waiting-message">Waiting for opponent...</div>
         </div>
