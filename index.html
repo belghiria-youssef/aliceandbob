@@ -180,10 +180,10 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
-    <div class="game-wrapper" id="game-wrapper">
+     <div class="game-wrapper" id="game-wrapper">
         <div class="lobby-screen" id="lobby-screen">
-            <h2>Online Number Game</h2>
-            <input type="text" id="game-id-input" placeholder="Enter Game ID">
+            <h2>Welcome To </h2>
+            <input type="text" id="game-id-input" placeholder="Create Game or Enter Id" >
             <button id="join-game-btn">Join Game</button>
             <button id="create-game-btn">Create New Game</button>
             <div class="player-info" id="player-info"></div>
@@ -196,7 +196,7 @@
                     <p>Expected Winner : <span id="Expected-Winner" class="Ex"></span></p>
                 </div>
                 <div class="info-item">
-                    <p>Turn : <span id="Turn">Player1</span></p>
+                    <p>Turn : <span id="Turn">Hicham</span></p>
                 </div>
                 <div class="info-item">
                     <p>Sum : <span id="Sum">0</span></p>
@@ -209,7 +209,7 @@
                 </div>
             </section>
 
-            <div id="Turn-Indicator" class="turn-indicator player1-turn">Player First Player Turn</div>
+            <div id="Turn-Indicator" class="turn-indicator player1-turn">Hicham's Turn</div>
 
             <section class="pn">
                 <div class="numbers-grid container" id="container"></div>
@@ -217,6 +217,7 @@
             </section>
         </div>
     </div>
+
 
     <script>
 
@@ -263,7 +264,8 @@
         const OnScreenLeftTurns = document.getElementById('Left-Turns');
         const Container = document.getElementById('container');
 
-
+        
+        waitingMessage.style.display = 'none'
         function RandomInt(From, To) {
             return Math.floor(From + Math.random() * (To - From + 1));
         }
@@ -300,7 +302,7 @@
         function WhoWin() {
             let Player1Info = GetPlayer1State();
             let Result = (Player1Info.Odds + Player1Info.Evens == Player1Info.Turns) && (Player1Info.Odds % 2 == 1);
-            return Result ? "Player2" : "Player1";
+            return Result ? "Belghiria" : "Hicham";
         }
 
         function ObjectToString(Obj) {
@@ -314,13 +316,13 @@
         }
 
         function UpdateTurnDisplay() {
-            OnScreenTurn.textContent = Turn ? "Player2" : "Player1";
-            TurnIndicator.textContent = Turn ? "Player 2's Turn" : "Player 1's Turn";
+            OnScreenTurn.textContent = Turn ? "Belghiria" : "Hicham";
+            TurnIndicator.textContent = Turn ? "Belghiria's Turn" : "Hicham's Turn";
             TurnIndicator.className = Turn ? "turn-indicator player2-turn" : "turn-indicator player1-turn";
         }
 
-        function OnGameEnd(){
-            OnScreenWinnerName.innerText = "Player " + (1 + PLayer1Sum % 2).toString();
+    function OnGameEnd(){
+            OnScreenWinnerName.innerText = WhoWin();
             OnScreenWinner.classList.add('show');
             gameActive = false;
         }
@@ -516,8 +518,8 @@
         createGameBtn.addEventListener('click', createNewGame);
         joinGameBtn.addEventListener('click', joinExistingGame);
 
-        // Initialize with random game ID
-        gameIdInput.value = Math.random().toString(36).substring(2, 8).toUpperCase();
+        gameIdInput.value = ''
+
     </script>
 </body>
 </html>
